@@ -4,7 +4,7 @@ import util
 import numpy as np
 import sys, random, os
 
-VERBOSE = False
+VERBOSE = True
 HOMEBASE = sys.argv[1]
 
 patterns = {}
