@@ -5,8 +5,9 @@ from keras import backend as K
 from matplotlib import pyplot as plt
 import numpy as np
 
-HOMEBASE = sys.argv[1] #Domenico stefani quickfix
-WRITEDIR = HOMEBASE + 'Out/' #Domenico stefani quickfix
+HOMEBASE = sys.argv[1]
+WRITEDIR = HOMEBASE + 'Out/'
+MODELDIR = HOMEBASE + 'Out/History/'
 MIDIDIR = HOMEBASE + 'RandomMidi/'
 
 
@@ -30,7 +31,7 @@ NUM_OFFSETS = 16 if USE_EMBEDDING else 1
 
 
 print "Loading Model..."
-model = load_model(WRITEDIR + 'model.h5')
+model = load_model(MODELDIR + 'model.h5')
 enc = Model(inputs=model.input, outputs=model.get_layer('pre_encoder').output)
 
 func = K.function([model.get_layer('encoder').input, K.learning_phase()],
@@ -48,8 +49,8 @@ def make_rand_songs(write_dir, rand_vecs):
 		x_rand = rand_vecs[i:i+1]
 		y_song = func([x_rand, 0])[0]
 		midi.samples_to_midi(y_song[0], write_dir + 'rand' + str(i) + '.mid', 16, 0.25)
-    
-    
+
+
 def make_rand_songs_normalized(write_dir, rand_vecs):
 	if USE_EMBEDDING:
 		x_enc = np.squeeze(enc.predict(x_orig))
@@ -76,7 +77,7 @@ def make_rand_songs_normalized(write_dir, rand_vecs):
 	for i in range(len(x_vecs)):
 		for k in range(len(x_vecs[0])):
 			x_vecs[i][k]=np.random.random()*10-5
-      
+
 	print "Creating random Songs"
 	make_rand_songs(write_dir, x_vecs)
 
@@ -104,10 +105,10 @@ def make_rand_songs_normalized(write_dir, rand_vecs):
 	plt.savefig(write_dir + 'stds.png')
 
 
-  
+
 print "Loading Data..."
-y_samples = np.load('samples.npy')
-y_lengths = np.load('lengths.npy')
+y_samples = np.load(HOMEBASE + 'samples.npy')
+y_lengths = np.load(HOMEBASE + 'lengths.npy')
 num_samples = y_samples.shape[0]
 num_songs = y_lengths.shape[0]
 print "Loaded " + str(num_samples) + " samples from " + str(num_songs) + " songs."
