@@ -1,4 +1,5 @@
 from mido import MidiFile, MidiTrack, Message, MetaMessage
+import pretty_midi
 import numpy as np
 
 num_notes = 96
@@ -69,60 +70,38 @@ def midi_to_samples(fname):
 	return samples
 
 def samples_to_midi(samples, fname, ticks_per_sample, thresh=0.5):
-	# mid = MidiFile()
-	# track = MidiTrack()
-	# mid.tracks.append(track)
-	# ticks_per_beat = mid.ticks_per_beat
-	# ticks_per_measure = 4 * ticks_per_beat
-	# ticks_per_sample = ticks_per_measure / samples_per_measure
-	# abs_time = 0
-	# last_time = 0
-	# track.append(MetaMessage('instrument_name', name='piano'))
-	# for sample in samples:
-	# 	for y in xrange(sample.shape[0]):
-	# 		abs_time += ticks_per_sample
-	# 		for x in xrange(sample.shape[1]):
-	# 			note = x + (128 - num_notes)/2
-	# 			if sample[y,x] >= thresh and (y == 0 or sample[y-1,x] < thresh):
-	# 				delta_time = abs_time - last_time
-	# 				track.append(Message('note_on', note=note, velocity=127, time=delta_time))
-	# 				last_time = abs_time
-	# 			if sample[y,x] >= thresh and (y == sample.shape[0]-1 or sample[y+1,x] < thresh):
-	# 				delta_time = abs_time - last_time
-	# 				track.append(Message('note_off', note=note, velocity=127, time=delta_time))
-	# 				last_time = abs_time
-	# mid.save(fname)
-
-	import pretty_midi
 	# Create a PrettyMIDI object
 	mid = pretty_midi.PrettyMIDI()
 	# Create an Instrument instance for a cello instrument
-	piano_program = pretty_midi.instrument_name_to_program('Piano')
+	piano_program = pretty_midi.instrument_name_to_program('Electric Piano 1')
 	piano = pretty_midi.Instrument(program=piano_program)
 	# Iterate over note names, which will be converted to note number later
 	for sample in samples:
 		for x in xrange(sample.shape[1]):
-			note = x + (128 - num_notes)/2
+			note_num = x + (128 - num_notes)/2
 
+			abs_time = 0
 			note_on = False
 			note_start = None;
 			note_end = None;
 			for y in xrange(sample.shape[0]):
-				abs_time += ticks_per_sample
 
-				if sample[y,x] >= thresh and (!note_on):
+				if sample[y,x] >= thresh and (not note_on):
 					note_on = True
 					note_start = abs_time
+					# print "Thres superata con " + str(sample[y,x])
 				if sample[y,x] < thresh and (note_on):
 					note_on = False
 					note_end = abs_time
 
 				if(note_start != None and note_end != None):
-				    note = pretty_midi.Note(
-				        velocity=100, pitch=note, start=note_start, end=note_end)
+					# print "Write note " + str(note_num) + ", " + str(note_start) + ", " + str(note_end)
+					note = pretty_midi.Note(velocity=100, pitch=note_num, start=note_start, end=note_end)
 					note_start = None
 					note_end = None
-	    			piano.notes.append(note)
+					piano.notes.append(note)
+
+				abs_time += ticks_per_sample
 	mid.instruments.append(piano)
 	# Write out the MIDI data
 	mid.write(fname)
