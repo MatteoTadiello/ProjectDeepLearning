@@ -11,7 +11,7 @@ MODELDIR = HOMEBASE + 'Out/History/'
 MIDIDIR = HOMEBASE + 'RandomMidi/'
 
 
-NUM_RAND_SONGS = 100
+NUM_RAND_SONGS = 10
 NUM_EPOCHS = 2000
 LR = 0.001
 CONTINUE_TRAIN = False
@@ -48,7 +48,7 @@ def make_rand_songs(write_dir, rand_vecs):
 	for i in xrange(rand_vecs.shape[0]):
 		x_rand = rand_vecs[i:i+1]
 		y_song = func([x_rand, 0])[0]
-		midi.samples_to_midi(y_song[0], write_dir + 'rand' + str(i) + '.mid', 16, 0.25)
+		midi.samples_to_midi(y_song[0], write_dir + 'rand' + str(i) + '.mid', ticks_per_sample = 0.125, thresh=0.20)
 
 
 def make_rand_songs_normalized(write_dir, rand_vecs):
