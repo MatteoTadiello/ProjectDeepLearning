@@ -1,3 +1,6 @@
+#
+#	Usage: generate_random_midi.py HOMEDIRECTORY NUMBER_OF_TRACKS
+#
 import sys, random, os
 import midi
 from keras.models import Model, Sequential, load_model
@@ -6,12 +9,11 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 HOMEBASE = sys.argv[1]
+NUM_RAND_SONGS = sys.argv[2]
 WRITEDIR = HOMEBASE + 'Out/'
 MODELDIR = HOMEBASE + 'Out/History/'
 MIDIDIR = HOMEBASE + 'RandomMidi/'
 
-
-NUM_RAND_SONGS = 10
 NUM_EPOCHS = 2000
 LR = 0.001
 CONTINUE_TRAIN = False
