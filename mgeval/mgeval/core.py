@@ -36,6 +36,10 @@ class metrics(object):
         Returns:
         'used_pitch': pitch count, scalar for each sample.
         """
+        if(feature['pretty_midi'].instruments == []):
+            print "Error, no instruments"
+            return None
+        print feature['pretty_midi'].instruments[0].name
         piano_roll = feature['pretty_midi'].instruments[0].get_piano_roll(fs=100)
         sum_notes = np.sum(piano_roll, axis=1)
         used_pitch = np.sum(sum_notes > 0)
