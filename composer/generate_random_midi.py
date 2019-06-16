@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 HOMEBASE = sys.argv[1]
-NUM_RAND_SONGS = sys.argv[2]
+NUM_RAND_SONGS = int(sys.argv[2])
 WRITEDIR = HOMEBASE + 'Out/'
 MODELDIR = HOMEBASE + 'Out/History/'
 MIDIDIR = HOMEBASE + 'RandomMidi/'
