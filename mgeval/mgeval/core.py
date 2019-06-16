@@ -39,7 +39,7 @@ class metrics(object):
         if(feature['pretty_midi'].instruments == []):
             print "Error, no instruments"
             return None
-        print feature['pretty_midi'].instruments[0].name
+        # print feature['pretty_midi'].instruments[0].name
         piano_roll = feature['pretty_midi'].instruments[0].get_piano_roll(fs=100)
         sum_notes = np.sum(piano_roll, axis=1)
         used_pitch = np.sum(sum_notes > 0)
@@ -56,6 +56,7 @@ class metrics(object):
         Returns:
         'used_pitch': with shape of [num_bar,1]
         """
+
         pattern = feature['midi_pattern']
         pattern.make_ticks_abs()
         resolution = pattern.resolution
@@ -64,7 +65,9 @@ class metrics(object):
                 time_sig = pattern[track_num][i].data
                 bar_length = time_sig[0] * resolution * 4 / 2**(time_sig[1])
                 if num_bar is None:
+                    print "None"
                     num_bar = int(round(float(pattern[track_num][-1].tick) / bar_length))
+                    print "Now num_bar is " + str(numbar)
                     used_notes = np.zeros((num_bar, 1))
                 else:
                     used_notes = np.zeros((num_bar, 1))
@@ -93,6 +96,11 @@ class metrics(object):
                     note_list.append(pattern[track_num][i].data[0])
                     used_notes[pattern[track_num][i].tick / bar_length] += 1
 
+        if num_bar is None:
+            print "None found"
+            num_bar = 0;
+
+        print "using " + str(num_bar)
         used_pitch = np.zeros((num_bar, 1))
         current_note = 0
         for i in range(0, num_bar):
@@ -289,7 +297,10 @@ class metrics(object):
         pattern.make_ticks_abs()
         resolution = pattern.resolution
         total_used_note = self.total_used_note(feature, track_num=track_num)
-        d_note = np.zeros((total_used_note - 1))
+        if (total_used_note is 0):
+            d_note = np.zeros((0)) #Added by Domenico Stefani to account for a bug
+        else:
+            d_note = np.zeros((total_used_note - 1))
         current_note = 0
         counter = 0
         for i in range(0, len(pattern[track_num])):
