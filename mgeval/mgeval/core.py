@@ -26,6 +26,28 @@ def extract_feature(_file):
                'midi_pattern': midi.read_midifile(_file)}
     return feature
 
+def get_nonempty_instrument(feature):
+    for i in range(0,len(feature['pretty_midi'].instruments)):
+        pr = feature['pretty_midi'].instruments[i].get_piano_roll(fs=100)
+        # print "sum of pianoroll is " + str(np.sum(pr))
+        if(np.sum(pr) > 0):
+            return (pr,i)
+    return (None,None)
+def get_instrument(feature):
+    (pianoroll,instrument) = get_nonempty_instrument(feature)
+    return instrument
+def get_piano_roll(feature):
+    (pianoroll,instrument) = get_nonempty_instrument(feature)
+    return pianoroll
+
+def get_track(feature):
+    pattern = feature['midi_pattern']
+    if(len(pattern) is 0):
+        print "Error! No tracks"
+        return None
+    if(len(pattern) is 1):
+        return 0
+    return 1
 
 # musically informed objective measures.
 class metrics(object):
@@ -40,12 +62,15 @@ class metrics(object):
             print "Error, no instruments"
             return None
         # print feature['pretty_midi'].instruments[0].name
-        piano_roll = feature['pretty_midi'].instruments[0].get_piano_roll(fs=100)
+        piano_roll = get_piano_roll(feature)
+        if piano_roll is None:
+            print "Error! Midi file might be empty"
+            return 0
         sum_notes = np.sum(piano_roll, axis=1)
         used_pitch = np.sum(sum_notes > 0)
         return used_pitch
 
-    def bar_used_pitch(self, feature, track_num=1, num_bar=None):
+    def bar_used_pitch(self, feature, track_num=None, num_bar=None):
         """
         bar_used_pitch (Pitch count per bar)
 
@@ -56,6 +81,10 @@ class metrics(object):
         Returns:
         'used_pitch': with shape of [num_bar,1]
         """
+        if track_num is None:
+            track_num = get_track(feature)
+            if track_num is None:
+                return None
 
         pattern = feature['midi_pattern']
         pattern.make_ticks_abs()
@@ -65,9 +94,9 @@ class metrics(object):
                 time_sig = pattern[track_num][i].data
                 bar_length = time_sig[0] * resolution * 4 / 2**(time_sig[1])
                 if num_bar is None:
-                    print "None"
                     num_bar = int(round(float(pattern[track_num][-1].tick) / bar_length))
-                    print "Now num_bar is " + str(numbar)
+                    print "correcting error track " + str(i)
+                    print "Now num_bar is " + str(num_bar)
                     used_notes = np.zeros((num_bar, 1))
                 else:
                     used_notes = np.zeros((num_bar, 1))
@@ -97,10 +126,10 @@ class metrics(object):
                     used_notes[pattern[track_num][i].tick / bar_length] += 1
 
         if num_bar is None:
-            print "None found"
+            print "None found "
+            print "Pattern length is " + str(len(pattern[track_num]))
             num_bar = 0;
 
-        print "using " + str(num_bar)
         used_pitch = np.zeros((num_bar, 1))
         current_note = 0
         for i in range(0, num_bar):
@@ -109,7 +138,7 @@ class metrics(object):
 
         return used_pitch
 
-    def total_used_note(self, feature, track_num=1):
+    def total_used_note(self, feature, track_num=None):
         """
         total_used_note (Note count): The number of used notes.
         As opposed to the pitch count, the note count does not contain pitch information but is a rhythm-related feature.
@@ -120,14 +149,22 @@ class metrics(object):
         Returns:
         'used_notes': a scalar for each sample.
         """
+
+
         pattern = feature['midi_pattern']
+
+        if track_num is None:
+            track_num = get_track(feature)
+            if track_num is None:
+                return 0
+
         used_notes = 0
         for i in range(0, len(pattern[track_num])):
             if type(pattern[track_num][i]) == midi.events.NoteOnEvent and pattern[track_num][i].data[1] != 0:
                 used_notes += 1
         return used_notes
 
-    def bar_used_note(self, feature, track_num=1, num_bar=None):
+    def bar_used_note(self, feature, track_num=None, num_bar=None):
         """
         bar_used_note (Note count per bar).
 
@@ -139,6 +176,11 @@ class metrics(object):
         'used_notes': with shape of [num_bar, 1]
         """
         pattern = feature['midi_pattern']
+        if track_num is None:
+            track_num = get_track(feature)
+            if track_num is None:
+                return None
+
         pattern.make_ticks_abs()
         resolution = pattern.resolution
         for i in range(0, len(pattern[track_num])):
@@ -177,15 +219,19 @@ class metrics(object):
         Returns:
         'histogram': histrogram of 12 pitch, with weighted duration shape 12
         """
-        piano_roll = feature['pretty_midi'].instruments[0].get_piano_roll(fs=100)
+
         histogram = np.zeros(12)
+        piano_roll = get_piano_roll(feature)
+        if piano_roll is None:
+            print "Error! Midi file might be empty"
+            return histogram
         for i in range(0, 128):
             pitch_class = i % 12
             histogram[pitch_class] += np.sum(piano_roll, axis=1)[i]
         histogram = histogram / sum(histogram)
         return histogram
 
-    def bar_pitch_class_histogram(self, feature, track_num=1, bpm=120, num_bar=None):
+    def bar_pitch_class_histogram(self, feature, bpm=120, num_bar=None):
         """
         bar_pitch_class_histogram (Pitch class histogram per bar):
 
@@ -198,13 +244,18 @@ class metrics(object):
         'histogram': with shape of [num_bar, 12]
         """
 
+        piano_roll = get_piano_roll(feature)
+        if piano_roll is None:
+            print "Error! Midi file might be empty"
+            return np.zeros(12)
+
         # todo: deal with more than one time signature cases
         pm_object = feature['pretty_midi']
         if num_bar is None:
             numer = pm_object.time_signature_changes[-1].numerator
             deno = pm_object.time_signature_changes[-1].denominator
             bar_length = 60. / bpm * numer * 4 / deno * 100
-            piano_roll = pm_object.instruments[track_num].get_piano_roll(fs=100)
+            # piano_roll = pm_object.instruments[track_num].get_piano_roll(fs=100)
             piano_roll = np.transpose(piano_roll, (1, 0))
             actual_bar = len(piano_roll) / bar_length
             num_bar = int(round(actual_bar))
@@ -213,7 +264,7 @@ class metrics(object):
             numer = pm_object.time_signature_changes[-1].numerator
             deno = pm_object.time_signature_changes[-1].denominator
             bar_length = 60. / bpm * numer * 4 / deno * 100
-            piano_roll = pm_object.instruments[track_num].get_piano_roll(fs=100)
+            # piano_roll = pm_object.instruments[track_num].get_piano_roll(fs=100)
             piano_roll = np.transpose(piano_roll, (1, 0))
             actual_bar = len(piano_roll) / bar_length
             bar_length = int(math.ceil(bar_length))
@@ -277,12 +328,17 @@ class metrics(object):
         Returns:
         'p_range': a scalar for each sample.
         """
-        piano_roll = feature['pretty_midi'].instruments[0].get_piano_roll(fs=100)
+
+        piano_roll = get_piano_roll(feature)
+        if piano_roll is None:
+            print "Error! Midi file might be empty"
+            return 0
+
         pitch_index = np.where(np.sum(piano_roll, axis=1) > 0)
         p_range = np.max(pitch_index) - np.min(pitch_index)
         return p_range
 
-    def avg_pitch_shift(self, feature, track_num=1):
+    def avg_pitch_shift(self, feature, track_num=None):
         """
         avg_pitch_shift (Average pitch interval):
         Average value of the interval between two consecutive pitches in semitones.
@@ -294,13 +350,20 @@ class metrics(object):
         'pitch_shift': a scalar for each sample.
         """
         pattern = feature['midi_pattern']
+
+
+        if track_num is None:
+            track_num = get_track(feature)
+            if track_num is None:
+                return 0
+
         pattern.make_ticks_abs()
         resolution = pattern.resolution
         total_used_note = self.total_used_note(feature, track_num=track_num)
-        if (total_used_note is 0):
-            d_note = np.zeros((0)) #Added by Domenico Stefani to account for a bug
-        else:
-            d_note = np.zeros((total_used_note - 1))
+        if(total_used_note is 0):
+            print "ohiohiohiohi"
+            return 0
+        d_note = np.zeros((total_used_note - 1))
         current_note = 0
         counter = 0
         for i in range(0, len(pattern[track_num])):
@@ -330,7 +393,7 @@ class metrics(object):
         avg_ioi = np.mean(ioi)
         return avg_ioi
 
-    def note_length_hist(self, feature, track_num=1, normalize=True, pause_event=False):
+    def note_length_hist(self, feature, track_num=None, normalize=False, pause_event=False):
         """
         note_length_hist (Note length histogram):
         To extract the note length histogram, we first define a set of allowable beat length classes:
@@ -346,8 +409,13 @@ class metrics(object):
         Returns:
         'note_length_hist': The output vector has a length of either 12 (or 24 when pause_event is True).
         """
-
         pattern = feature['midi_pattern']
+
+        if track_num is None:
+            track_num = get_track(feature)
+            if track_num is None:
+                return np.zeros((12))
+
         if pause_event is False:
             note_length_hist = np.zeros((12))
             pattern.make_ticks_abs()
@@ -428,10 +496,14 @@ class metrics(object):
             return note_length_hist
 
         elif normalize is True:
+            sum = np.sum(note_length_hist)
+            if(sum is 0.0):
+                print "Warning, Note length histogram with all zero values"
+                return note_length_hist
+            else:
+                return note_length_hist / np.sum(note_length_hist)
 
-            return note_length_hist / np.sum(note_length_hist)
-
-    def note_length_transition_matrix(self, feature, track_num=1, normalize=0, pause_event=False):
+    def note_length_transition_matrix(self, feature, track_num=None, normalize=0, pause_event=False):
         """
         note_length_transition_matrix (Note length transition matrix):
         Similar to the pitch class transition matrix, the note length tran- sition matrix provides useful information for rhythm description.
@@ -449,6 +521,11 @@ class metrics(object):
         'transition_matrix': The output feature dimension is 12 × 12 (or 24 x 24 when pause_event is True).
         """
         pattern = feature['midi_pattern']
+        if track_num is None:
+            track_num = get_track(feature)
+            if track_num is None:
+                return np.zeros((12, 12))
+
         if pause_event is False:
             transition_matrix = np.zeros((12, 12))
             pattern.make_ticks_abs()
